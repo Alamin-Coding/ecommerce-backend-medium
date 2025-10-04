@@ -5,7 +5,7 @@
    git clone https://github.com/Alamin-Coding/ecommerce-backend-medium.git
    cd ecommerce-backend-medium
    npm install
-
+```
 
 ## You just need to:
 
