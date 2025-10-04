@@ -20,28 +20,14 @@ const {
   changePasswordValidator,
 } = require('../validators/user.validator');
 
-// User profile routes
 router.get('/profile', protect, getUserProfile);
-router.put(
-  '/profile',
-  protect,
-  upload.single('avatar'),
-  validateZod(updateProfileValidator),
-  updateUserProfile
-);
-router.put(
-  '/change-password',
-  protect,
-  validateZod(changePasswordValidator),
-  changePassword
-);
+router.put('/profile', protect, upload.single('avatar'), validateZod(updateProfileValidator), updateUserProfile);
+router.put('/change-password', protect, validateZod(changePasswordValidator), changePassword);
 
-// Address management routes
 router.post('/address', protect, addAddress);
 router.put('/address/:addressId', protect, updateAddress);
 router.delete('/address/:addressId', protect, deleteAddress);
 
-// Admin routes
 router.get('/', protect, admin, getAllUsers);
 router.get('/:id', protect, admin, getUserById);
 router.put('/:id', protect, admin, updateUser);

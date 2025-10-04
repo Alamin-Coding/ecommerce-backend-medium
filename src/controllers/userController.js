@@ -3,9 +3,7 @@ const bcrypt = require('bcryptjs');
 const User = require('../models/User');
 const cloudinary = require('../config/cloudinary');
 
-// @desc    Get user profile
-// @route   GET /api/users/profile
-// @access  Private
+// Get user profile
 exports.getUserProfile = asyncHandler(async (req, res) => {
   const user = await User.findById(req.user._id);
 
@@ -20,9 +18,7 @@ exports.getUserProfile = asyncHandler(async (req, res) => {
   });
 });
 
-// @desc    Update user profile
-// @route   PUT /api/users/profile
-// @access  Private
+// Update user profile
 exports.updateUserProfile = asyncHandler(async (req, res) => {
   const user = await User.findById(req.user._id);
 
@@ -31,18 +27,15 @@ exports.updateUserProfile = asyncHandler(async (req, res) => {
     throw new Error('User not found');
   }
 
-  // Update allowed fields
   user.name = req.body.name || user.name;
   user.phone = req.body.phone || user.phone;
 
   // Handle avatar upload
   if (req.file) {
-    // Delete old avatar from cloudinary if exists
     if (user.avatar && user.avatar.public_id) {
       await cloudinary.uploader.destroy(user.avatar.public_id);
     }
 
-    // Upload new avatar
     const result = await cloudinary.uploader.upload(req.file.path, {
       folder: 'avatars',
       width: 300,
@@ -65,13 +58,10 @@ exports.updateUserProfile = asyncHandler(async (req, res) => {
   });
 });
 
-// @desc    Change password
-// @route   PUT /api/users/change-password
-// @access  Private
+// Change password
 exports.changePassword = asyncHandler(async (req, res) => {
   const { currentPassword, newPassword } = req.body;
 
-  // Get user with password field
   const user = await User.findById(req.user._id).select('+password');
 
   if (!user) {
@@ -79,7 +69,6 @@ exports.changePassword = asyncHandler(async (req, res) => {
     throw new Error('User not found');
   }
 
-  // Check current password
   const isPasswordMatch = await bcrypt.compare(currentPassword, user.password);
 
   if (!isPasswordMatch) {
@@ -87,7 +76,6 @@ exports.changePassword = asyncHandler(async (req, res) => {
     throw new Error('Current password is incorrect');
   }
 
-  // Hash new password
   const salt = await bcrypt.genSalt(10);
   user.password = await bcrypt.hash(newPassword, salt);
 
@@ -99,9 +87,7 @@ exports.changePassword = asyncHandler(async (req, res) => {
   });
 });
 
-// @desc    Add address
-// @route   POST /api/users/address
-// @access  Private
+// Add address
 exports.addAddress = asyncHandler(async (req, res) => {
   const user = await User.findById(req.user._id);
 
@@ -112,21 +98,19 @@ exports.addAddress = asyncHandler(async (req, res) => {
 
   const { street, city, state, zipCode, country, isDefault } = req.body;
 
-  // If this address is set as default, unset other default addresses
   if (isDefault) {
     user.addresses.forEach((addr) => {
       addr.isDefault = false;
     });
   }
 
-  // Add new address
   user.addresses.push({
     street,
     city,
     state,
     zipCode,
     country,
-    isDefault: isDefault || user.addresses.length === 0, // First address is default
+    isDefault: isDefault || user.addresses.length === 0,
   });
 
   await user.save();
@@ -138,9 +122,7 @@ exports.addAddress = asyncHandler(async (req, res) => {
   });
 });
 
-// @desc    Update address
-// @route   PUT /api/users/address/:addressId
-// @access  Private
+// Update address
 exports.updateAddress = asyncHandler(async (req, res) => {
   const user = await User.findById(req.user._id);
 
@@ -156,14 +138,12 @@ exports.updateAddress = asyncHandler(async (req, res) => {
     throw new Error('Address not found');
   }
 
-  // Update address fields
   address.street = req.body.street || address.street;
   address.city = req.body.city || address.city;
   address.state = req.body.state || address.state;
   address.zipCode = req.body.zipCode || address.zipCode;
   address.country = req.body.country || address.country;
 
-  // Handle default flag
   if (req.body.isDefault && !address.isDefault) {
     user.addresses.forEach((addr) => {
       addr.isDefault = false;
@@ -180,9 +160,7 @@ exports.updateAddress = asyncHandler(async (req, res) => {
   });
 });
 
-// @desc    Delete address
-// @route   DELETE /api/users/address/:addressId
-// @access  Private
+// Delete address
 exports.deleteAddress = asyncHandler(async (req, res) => {
   const user = await User.findById(req.user._id);
 
@@ -198,10 +176,8 @@ exports.deleteAddress = asyncHandler(async (req, res) => {
     throw new Error('Address not found');
   }
 
-  // Remove address
   address.deleteOne();
 
-  // If deleted address was default and there are other addresses, set first as default
   if (address.isDefault && user.addresses.length > 0) {
     user.addresses[0].isDefault = true;
   }
@@ -215,9 +191,7 @@ exports.deleteAddress = asyncHandler(async (req, res) => {
   });
 });
 
-// @desc    Get all users (Admin only)
-// @route   GET /api/users
-// @access  Private/Admin
+// Get all users (Admin)
 exports.getAllUsers = asyncHandler(async (req, res) => {
   const pageSize = 20;
   const page = Number(req.query.page) || 1;
@@ -248,9 +222,7 @@ exports.getAllUsers = asyncHandler(async (req, res) => {
   });
 });
 
-// @desc    Get user by ID (Admin only)
-// @route   GET /api/users/:id
-// @access  Private/Admin
+// Get user by ID (Admin)
 exports.getUserById = asyncHandler(async (req, res) => {
   const user = await User.findById(req.params.id).select('-password');
 
@@ -265,9 +237,7 @@ exports.getUserById = asyncHandler(async (req, res) => {
   });
 });
 
-// @desc    Update user (Admin only)
-// @route   PUT /api/users/:id
-// @access  Private/Admin
+// Update user (Admin)
 exports.updateUser = asyncHandler(async (req, res) => {
   const user = await User.findById(req.params.id);
 
@@ -279,7 +249,6 @@ exports.updateUser = asyncHandler(async (req, res) => {
   user.name = req.body.name || user.name;
   user.email = req.body.email || user.email;
   user.role = req.body.role || user.role;
-  user.isVerified = req.body.isVerified !== undefined ? req.body.isVerified : user.isVerified;
 
   const updatedUser = await user.save();
 
@@ -290,9 +259,7 @@ exports.updateUser = asyncHandler(async (req, res) => {
   });
 });
 
-// @desc    Delete user (Admin only)
-// @route   DELETE /api/users/:id
-// @access  Private/Admin
+// Delete user (Admin)
 exports.deleteUser = asyncHandler(async (req, res) => {
   const user = await User.findById(req.params.id);
 
@@ -301,7 +268,6 @@ exports.deleteUser = asyncHandler(async (req, res) => {
     throw new Error('User not found');
   }
 
-  // Delete user's avatar from cloudinary if exists
   if (user.avatar && user.avatar.public_id) {
     await cloudinary.uploader.destroy(user.avatar.public_id);
   }

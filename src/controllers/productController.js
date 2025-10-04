@@ -1,15 +1,13 @@
 const asyncHandler = require('express-async-handler');
 const Product = require('../models/Product');
+const Review = require('../models/Review');
 const cloudinary = require('../config/cloudinary');
 
-// @desc    Get all products with filters
-// @route   GET /api/products
-// @access  Public
+// Get all products
 exports.getProducts = asyncHandler(async (req, res) => {
   const pageSize = 12;
   const page = Number(req.query.page) || 1;
 
-  // Build query
   const keyword = req.query.keyword
     ? {
         $or: [
@@ -20,11 +18,11 @@ exports.getProducts = asyncHandler(async (req, res) => {
     : {};
 
   const category = req.query.category ? { category: req.query.category } : {};
-  
+
   const priceFilter = {};
   if (req.query.minPrice) priceFilter.$gte = Number(req.query.minPrice);
   if (req.query.maxPrice) priceFilter.$lte = Number(req.query.maxPrice);
-  
+
   const query = {
     ...keyword,
     ...category,
@@ -32,10 +30,8 @@ exports.getProducts = asyncHandler(async (req, res) => {
     isActive: true,
   };
 
-  // Get total count
   const count = await Product.countDocuments(query);
 
-  // Get products
   const products = await Product.find(query)
     .populate('category', 'name')
     .populate('seller', 'name email')
@@ -52,9 +48,7 @@ exports.getProducts = asyncHandler(async (req, res) => {
   });
 });
 
-// @desc    Get single product by ID
-// @route   GET /api/products/:id
-// @access  Public
+// Get product by ID
 exports.getProductById = asyncHandler(async (req, res) => {
   const product = await Product.findById(req.params.id)
     .populate('category', 'name')
@@ -71,13 +65,10 @@ exports.getProductById = asyncHandler(async (req, res) => {
   });
 });
 
-// @desc    Create new product
-// @route   POST /api/products
-// @access  Private/Admin/Seller
+// Create product
 exports.createProduct = asyncHandler(async (req, res) => {
   const { name, description, price, discountPrice, category, stock, specifications } = req.body;
 
-  // Handle image uploads
   const images = [];
   if (req.files && req.files.length > 0) {
     for (const file of req.files) {
@@ -86,7 +77,7 @@ exports.createProduct = asyncHandler(async (req, res) => {
         width: 800,
         crop: 'scale',
       });
-      
+
       images.push({
         public_id: result.public_id,
         url: result.secure_url,
@@ -94,7 +85,6 @@ exports.createProduct = asyncHandler(async (req, res) => {
     }
   }
 
-  // Create product
   const product = await Product.create({
     name,
     description,
@@ -114,9 +104,7 @@ exports.createProduct = asyncHandler(async (req, res) => {
   });
 });
 
-// @desc    Update product
-// @route   PUT /api/products/:id
-// @access  Private/Admin/Seller
+// Update product
 exports.updateProduct = asyncHandler(async (req, res) => {
   const product = await Product.findById(req.params.id);
 
@@ -125,7 +113,6 @@ exports.updateProduct = asyncHandler(async (req, res) => {
     throw new Error('Product not found');
   }
 
-  // Check ownership (seller can only update their own products)
   if (
     req.user.role !== 'admin' &&
     product.seller.toString() !== req.user._id.toString()
@@ -134,17 +121,13 @@ exports.updateProduct = asyncHandler(async (req, res) => {
     throw new Error('Not authorized to update this product');
   }
 
-  // Update fields
   Object.assign(product, req.body);
 
-  // Handle new image uploads
   if (req.files && req.files.length > 0) {
-    // Delete old images from cloudinary
     for (const image of product.images) {
       await cloudinary.uploader.destroy(image.public_id);
     }
 
-    // Upload new images
     const images = [];
     for (const file of req.files) {
       const result = await cloudinary.uploader.upload(file.path, {
@@ -152,13 +135,13 @@ exports.updateProduct = asyncHandler(async (req, res) => {
         width: 800,
         crop: 'scale',
       });
-      
+
       images.push({
         public_id: result.public_id,
         url: result.secure_url,
       });
     }
-    
+
     product.images = images;
   }
 
@@ -171,9 +154,7 @@ exports.updateProduct = asyncHandler(async (req, res) => {
   });
 });
 
-// @desc    Delete product
-// @route   DELETE /api/products/:id
-// @access  Private/Admin/Seller
+// Delete product
 exports.deleteProduct = asyncHandler(async (req, res) => {
   const product = await Product.findById(req.params.id);
 
@@ -182,7 +163,6 @@ exports.deleteProduct = asyncHandler(async (req, res) => {
     throw new Error('Product not found');
   }
 
-  // Check ownership
   if (
     req.user.role !== 'admin' &&
     product.seller.toString() !== req.user._id.toString()
@@ -191,7 +171,6 @@ exports.deleteProduct = asyncHandler(async (req, res) => {
     throw new Error('Not authorized to delete this product');
   }
 
-  // Delete images from cloudinary
   for (const image of product.images) {
     await cloudinary.uploader.destroy(image.public_id);
   }
@@ -204,9 +183,7 @@ exports.deleteProduct = asyncHandler(async (req, res) => {
   });
 });
 
-// @desc    Create product review
-// @route   POST /api/products/:id/reviews
-// @access  Private
+// Create product review
 exports.createProductReview = asyncHandler(async (req, res) => {
   const { rating, comment } = req.body;
 
@@ -217,8 +194,6 @@ exports.createProductReview = asyncHandler(async (req, res) => {
     throw new Error('Product not found');
   }
 
-  // Check if user already reviewed
-  const Review = require('../models/Review');
   const alreadyReviewed = await Review.findOne({
     product: req.params.id,
     user: req.user._id,
@@ -229,7 +204,6 @@ exports.createProductReview = asyncHandler(async (req, res) => {
     throw new Error('You have already reviewed this product');
   }
 
-  // Create review
   const review = await Review.create({
     product: req.params.id,
     user: req.user._id,
@@ -237,7 +211,6 @@ exports.createProductReview = asyncHandler(async (req, res) => {
     comment,
   });
 
-  // Update product rating
   const reviews = await Review.find({ product: req.params.id });
   product.numReviews = reviews.length;
   product.rating =

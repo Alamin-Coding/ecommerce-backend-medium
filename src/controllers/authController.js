@@ -4,25 +4,19 @@ const User = require('../models/User');
 const generateToken = require('../utils/generateToken');
 const sendEmail = require('../utils/sendEmail');
 
-// @desc    Register new user
-// @route   POST /api/auth/register
-// @access  Public
+// Register new user
 exports.register = asyncHandler(async (req, res) => {
   const { name, email, password, phone } = req.body;
 
-  // Check if user already exists
   const userExists = await User.findOne({ email });
-  
   if (userExists) {
     res.status(400);
     throw new Error('User already exists with this email');
   }
 
-  // Hash password
   const salt = await bcrypt.genSalt(10);
   const hashedPassword = await bcrypt.hash(password, salt);
 
-  // Create user
   const user = await User.create({
     name,
     email,
@@ -31,7 +25,6 @@ exports.register = asyncHandler(async (req, res) => {
   });
 
   if (user) {
-    // Send welcome email
     try {
       await sendEmail({
         email: user.email,
@@ -59,13 +52,10 @@ exports.register = asyncHandler(async (req, res) => {
   }
 });
 
-// @desc    Login user
-// @route   POST /api/auth/login
-// @access  Public
+// Login user
 exports.login = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
 
-  // Find user and include password field
   const user = await User.findOne({ email }).select('+password');
 
   if (!user) {
@@ -73,7 +63,6 @@ exports.login = asyncHandler(async (req, res) => {
     throw new Error('Invalid email or password');
   }
 
-  // Check password
   const isPasswordMatch = await bcrypt.compare(password, user.password);
 
   if (!isPasswordMatch) {
@@ -94,9 +83,7 @@ exports.login = asyncHandler(async (req, res) => {
   });
 });
 
-// @desc    Get current logged in user
-// @route   GET /api/auth/me
-// @access  Private
+// Get current user
 exports.getMe = asyncHandler(async (req, res) => {
   const user = await User.findById(req.user._id);
 
@@ -106,9 +93,7 @@ exports.getMe = asyncHandler(async (req, res) => {
   });
 });
 
-// @desc    Logout user
-// @route   POST /api/auth/logout
-// @access  Private
+// Logout user
 exports.logout = asyncHandler(async (req, res) => {
   res.json({
     success: true,
